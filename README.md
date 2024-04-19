@@ -9,6 +9,18 @@
 
 ## Running locally
 
-### Backend - TODO
+### Backend
 
-### Frontend - TODO
+* Install the proper version of MongoDB for your local env
+ * MongoDB 6.x for Windows 10
+ * MongoDB 7+ for everything else
+* add the `tbt-local` database to the the local connection
+* set the following environment variables
+  * set the `MongoDBConnectionString` environment variable to `mongodb://localhost:<PORT>/`
+  * set the `TrialByTrolleyDatabase` environment variable to `tbt-local`
+* run the `./scripts/mongo-setup.js` in the Mongo shell to set up local databases
+* start the `TheReplacement.Trolley.Api.Client` to start the server
+
+### Frontend
+
+* See the [Client ReadME](./src/client/README.md)

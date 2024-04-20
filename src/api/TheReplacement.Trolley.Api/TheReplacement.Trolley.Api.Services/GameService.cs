@@ -23,7 +23,7 @@ namespace TheReplacement.Trolley.Api.Services
 
         public Game GetGame(Guid id)
         {
-            return _games.Find(game => game.GameId == id).SingleOrDefault()?? throw new Exception($"Game {id} not found");
+            return _games.Find(game => game.GameId == id).SingleOrDefault() ?? throw new Exception($"Game {id} not found");
         }
 
         public bool CreateNewGame(Game game, out string error)
@@ -45,7 +45,7 @@ namespace TheReplacement.Trolley.Api.Services
         public bool SetHost(Guid gameId, Guid hostId)
         {
             var game = GetGame(gameId);
-            if (game.HostId != Guid.Empty)
+            if (!(game.HostId == Guid.Empty && game.PlayerIds.Contains(hostId)))
             {
                 return false;
             }
@@ -61,11 +61,87 @@ namespace TheReplacement.Trolley.Api.Services
             return UpdateGameIsAcknowledged(game);
         }
 
-        public bool RemovePlayer(Guid gameId, Guid playerId)
+        public bool RemovePlayer(Game game, Guid playerId)
         {
-            var game = GetGame(gameId);
             game.PlayerIds.Remove(playerId);
             return UpdateGameIsAcknowledged(game);
+        }
+
+        public bool DiscardTrack(Game game)
+        {
+            game.DiscardedCards.AddRange(game.Track.LeftTrack);
+            game.DiscardedCards.AddRange(game.Track.RightTrack);
+            game.Track = new Track();
+            return UpdateGameIsAcknowledged(game);
+        }
+
+        public bool DealToTeam(Game game)
+        {
+            var players = PlayerService.Singleton.GetPlayers(game);
+            var isSuccessful = players.Aggregate(true, (current, player) =>
+            {
+                var hand = player.Hand;
+                hand.InnocentCards.Add(game.InnocentDeck.Pop());
+                hand.ModifierCards.Add(game.ModifierDeck.Pop());
+                hand.GuiltyCards.Add(game.GuiltyDeck.Pop());
+                return current & PlayerService.Singleton.UpdateHand(player, hand) & UpdateGameIsAcknowledged(game);
+            });
+
+            return isSuccessful;
+        }
+
+        public bool ShuffleDeck(Game game)
+        {
+            game.InnocentDeck = GetShuffledDeck(game, game.InnocentDeck, CardType.Innocent);
+            game.ModifierDeck = GetShuffledDeck(game, game.ModifierDeck, CardType.Modifier);
+            game.GuiltyDeck = GetShuffledDeck(game, game.GuiltyDeck, CardType.Guilty);
+            game.DiscardedCards = new List<BaseCard>();
+
+            return UpdateGameIsAcknowledged(game);
+        }
+
+        private static Stack<TDeck> GetShuffledDeck<TDeck>(
+            Game game,
+            Stack<TDeck> deckStack,
+            CardType deckType) where TDeck : BaseCard
+        {
+            var random = new Random();
+            var deck = deckStack.ToList();
+            deck.AddRange(game.DiscardedCards.Where(card => card.Type == deckType).Cast<TDeck>());
+            var shuffledDeck = new Stack<TDeck>();
+            while (deck.Any())
+            {
+                var index = random.Next(deck.Count);
+                shuffledDeck.Push(deck[index]);
+                deck.RemoveAt(index);
+            }
+
+            return shuffledDeck;
+        }
+
+        public bool AddToDiscussion(Game game, Guid playerId, string message)
+        {
+            var player = PlayerService.Singleton.GetPlayer(playerId);
+            var item = new DiscussionItem
+            {
+                Message = message,
+                Name = player.Name,
+                Timestamp = DateTime.Now
+            };
+            game.Discussion.Add(item);
+
+            return UpdateGameIsAcknowledged(game);
+        }
+
+        public bool DeleteGame(Game gameToDelete)
+        {
+            var gameDeletionResult = _games.DeleteOne(game => game.GameId == gameToDelete.GameId).IsAcknowledged;
+            var trainerDeletionResult = gameToDelete.PlayerIds.Aggregate(true, (current, playerId) =>
+            {
+                return current & PlayerService.Singleton.DeletePlayer(playerId);
+            });
+
+            return gameDeletionResult && trainerDeletionResult;
         }
 
         private bool UpdateGameIsAcknowledged(Game updatedGame)

@@ -5,6 +5,6 @@ namespace TheReplacement.Trolley.Api.Services.Models
 {
     public class InnocentCard : BaseCard
     {
-        public override CardType Type { get; } = CardType.Innocent;
+        public override CardType Type { get; internal set; } = CardType.Innocent;
     }
 }

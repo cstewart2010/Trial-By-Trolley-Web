@@ -2,9 +2,9 @@
 
 namespace TheReplacement.Trolley.Api.Client.Models
 {
-    internal class NewGameForm
+    internal class RemoveGameForm
     {
-        public DateTime Initialization { get; set; }
+        public Guid PlayerId { get; set; }
         public Guid HostId { get; set; }
     }
 }

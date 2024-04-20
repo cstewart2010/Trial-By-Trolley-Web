@@ -6,16 +6,16 @@ const _id = {
     bsonType: 'objectId'
 };
 
+const stringSchema = {
+    bsonType: 'string',
+    minLength: 1
+};
+
 const cardSchema = {
     bsonType: 'object',
     properties: {
-        Text: {
-            bsonType: 'string',
-            minLength: 1
-        },
-        ImageId: {
-            bsonType: 'string'
-        },
+        Text: stringSchema,
+        ImageId: stringSchema,
         CardType: {
             bsonType: 'int',
             minimum: 0,
@@ -58,6 +58,29 @@ const updatedValidators = {
                 InnocentDeck: deckSchema,
                 GuiltyDeck: deckSchema,
                 ModifierDeck: deckSchema,
+                DiscardedCards: deckSchema,
+                Discussion: {
+                    bsonType: 'array',
+                    items: {
+                        bsonType: 'object',
+                        properties: {
+                            Name: stringSchema,
+                            Timestamp: {
+                                bsonType: 'date'
+                            },
+                            Message: stringSchema
+                        },
+                        additionalProperties: false
+                    }
+                },
+                Track: {
+                    bsonType: 'object',
+                    properties: {
+                        LeftTrack: deckSchema,
+                        RightTrack: deckSchema,
+                    },
+                    additionalProperties: false
+                },
                 LastAction: {
                     bsonType: 'date'
                 },
@@ -70,6 +93,9 @@ const updatedValidators = {
                 'InnocentDeck',
                 'GuiltyDeck',
                 'ModifierDeck',
+                'DiscardedCards',
+                'Discussion',
+                'Track',
                 'LastAction'
             ],
             additionalProperties: false
@@ -85,10 +111,7 @@ const updatedValidators = {
                 GameId: {
                     bsonType: 'binData'
                 },
-                Name: {
-                    bsonType: 'string',
-                    minLength: 1
-                },
+                Name: stringSchema,
                 IsHost: {
                     bsonType: 'bool'
                 },

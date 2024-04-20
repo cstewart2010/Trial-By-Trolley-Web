@@ -5,6 +5,6 @@ namespace TheReplacement.Trolley.Api.Services.Models
 {
     public class ModifierCard : BaseCard
     {
-        public override CardType Type { get; } = CardType.Modifier;
+        public override CardType Type { get; internal set; } = CardType.Modifier;
     }
 }

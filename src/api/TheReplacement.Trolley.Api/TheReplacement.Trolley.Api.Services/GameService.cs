@@ -75,6 +75,20 @@ namespace TheReplacement.Trolley.Api.Services
             return UpdateGameIsAcknowledged(game);
         }
 
+        public bool PlayCard(Game game, BaseCard card, bool isLeft)
+        {
+            if (isLeft)
+            {
+                game.Track.LeftTrack.Add(card);
+            }
+            else
+            {
+                game.Track.RightTrack.Add(card);
+            }
+
+            return UpdateGameIsAcknowledged(game);
+        }
+
         public bool DealToTeam(Game game)
         {
             var players = PlayerService.Singleton.GetPlayers(game);

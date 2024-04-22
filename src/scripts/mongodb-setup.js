@@ -11,11 +11,16 @@ const stringSchema = {
     minLength: 1
 };
 
+const boolSchema = {
+    bsonType: 'bool'
+}
+
 const cardSchema = {
     bsonType: 'object',
     properties: {
         Text: stringSchema,
         ImageId: stringSchema,
+        IsSuggested: boolSchema,
         CardType: {
             bsonType: 'int',
             minimum: 0,
@@ -25,6 +30,7 @@ const cardSchema = {
     required: [
         'Text',
         'ImageId',
+        'IsSuggested',
         'CardType'
     ],
     additionalProperties: false
@@ -112,9 +118,7 @@ const updatedValidators = {
                     bsonType: 'binData'
                 },
                 Name: stringSchema,
-                IsHost: {
-                    bsonType: 'bool'
-                },
+                IsHost: boolSchema,
                 Hand: {
                     bsonType: 'object',
                     properties: {

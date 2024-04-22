@@ -31,6 +31,27 @@ namespace TheReplacement.Trolley.Api.Services
             return _players.Find(player => game.PlayerIds.Contains(player.PlayerId)).ToList();
         }
 
+        public bool CreatePlayer(Player player, out string error)
+        {
+            error = "";
+            try
+            {
+                _players.InsertOne(player);
+                return true;
+            }
+            catch (MongoWriteException ex)
+            {
+                error = ex.WriteError.Details.GetValue("details").AsBsonDocument.ToString();
+                return false;
+            }
+        }
+
+        public bool UpdateGameId(Player player, Guid gameId)
+        {
+            player.GameId = gameId;
+            return UpdatedPlayerIsAcknowledged(player);
+        }
+
         public bool UpdateHand(Player player, PlayerHand updatedHand)
         {
             player.Hand = updatedHand;

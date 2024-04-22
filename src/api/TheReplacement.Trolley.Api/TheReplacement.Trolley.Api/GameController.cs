@@ -24,8 +24,8 @@ namespace TheReplacement.Trolley.Api
             _logger = log;
         }
 
-        [FunctionName("GetGame")]
-        [OpenApiOperation(operationId: "GetGame", tags: "Game")]
+        [FunctionName(nameof(GetGame))]
+        [OpenApiOperation(operationId: nameof(GetGame), tags: nameof(Game))]
         [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(Game), Description = "The OK response")]
         public IActionResult GetGame(
@@ -36,8 +36,8 @@ namespace TheReplacement.Trolley.Api
             return new OkObjectResult(game);
         }
 
-        [FunctionName("GetDiscussion")]
-        [OpenApiOperation(operationId: "GetDiscussion", tags: "Game")]
+        [FunctionName(nameof(GetDiscussion))]
+        [OpenApiOperation(operationId: nameof(GetDiscussion), tags: nameof(Game))]
         [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(List<DiscussionItem>), Description = "The OK response")]
         public IActionResult GetDiscussion(
@@ -48,8 +48,8 @@ namespace TheReplacement.Trolley.Api
             return new OkObjectResult(game.Discussion);
         }
 
-        [FunctionName("CreateNewGame")]
-        [OpenApiOperation(operationId: "CreateNewGame", tags: "Game")]
+        [FunctionName(nameof(CreateNewGame))]
+        [OpenApiOperation(operationId: nameof(CreateNewGame), tags: nameof(Game))]
         [OpenApiRequestBody("application/json", typeof(NewGameForm), Required = true, Description = "The Game")]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(Game), Description = "The OK response")]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.BadRequest, contentType: "text/plain", bodyType: typeof(string), Description = "The Bad response")]
@@ -64,6 +64,7 @@ namespace TheReplacement.Trolley.Api
                 HostId = form.HostId
             };
 
+            newGame.PlayerIds.Add(form.HostId);
             var result = GameService.Singleton.CreateNewGame(newGame, out var error);
             if (!result)
             {
@@ -74,8 +75,8 @@ namespace TheReplacement.Trolley.Api
             return new OkObjectResult(game);
         }
 
-        [FunctionName("SetHost")]
-        [OpenApiOperation(operationId: "SetHost", tags: "Game")]
+        [FunctionName(nameof(SetHost))]
+        [OpenApiOperation(operationId: nameof(SetHost), tags: nameof(Game))]
         [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
         [OpenApiRequestBody("application/json", typeof(HostRequestForm), Required = true, Description = "The Game")]
         [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
@@ -102,8 +103,8 @@ namespace TheReplacement.Trolley.Api
             return new OkResult();
         }
 
-        [FunctionName("JoinGame")]
-        [OpenApiOperation(operationId: "JoinGame", tags: "Game")]
+        [FunctionName(nameof(JoinGame))]
+        [OpenApiOperation(operationId: nameof(JoinGame), tags: nameof(Game))]
         [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
         [OpenApiRequestBody("application/json", typeof(JoinGameForm), Required = true, Description = "The Game")]
         [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
@@ -130,8 +131,8 @@ namespace TheReplacement.Trolley.Api
             return new OkResult();
         }
 
-        [FunctionName("RemovePlayer")]
-        [OpenApiOperation(operationId: "RemovePlayer", tags: "Game")]
+        [FunctionName(nameof(RemovePlayer))]
+        [OpenApiOperation(operationId: nameof(RemovePlayer), tags: nameof(Game))]
         [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
         [OpenApiRequestBody("application/json", typeof(RemoveGameForm), Required = true, Description = "The Game")]
         [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
@@ -168,15 +169,38 @@ namespace TheReplacement.Trolley.Api
             var result = GameService.Singleton.RemovePlayer(game, form.PlayerId);
             if (!result)
             {
-                var error = "Failed to add player to game";
+                var error = "Failed to remove player to game";
                 _logger.LogError(error);
                 return new BadRequestObjectResult(error);
             }
             return new OkResult();
         }
 
-        [FunctionName("DiscardTrack")]
-        [OpenApiOperation(operationId: "DiscardTrack", tags: "Game")]
+        [FunctionName(nameof(PlayCard))]
+        [OpenApiOperation(operationId: nameof(PlayCard), tags: nameof(Game))]
+        [OpenApiRequestBody("application/json", typeof(PlayCardForm), Required = true)]
+        [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
+        [OpenApiResponseWithoutBody(HttpStatusCode.OK)]
+        public IActionResult PlayCard(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "game/playCard/{gameId}")] HttpRequest request,
+            Guid gameId)
+        {
+            var game = GameService.Singleton.GetGame(gameId);
+            var form = request.DeserializeBody<PlayCardForm>();
+            var card = CardService.Singleton.GetCard(form.ImageId, form.Type);
+            var result = GameService.Singleton.PlayCard(game, card, form.IsLeftTrack);
+            if (!result)
+            {
+                var error = "Failed to play card";
+                _logger.LogInformation(error);
+                return new BadRequestObjectResult(error);
+            }
+
+            return new OkResult();
+        }
+
+        [FunctionName(nameof(DiscardTrack))]
+        [OpenApiOperation(operationId: nameof(DiscardTrack), tags: nameof(Game))]
         [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
         [OpenApiRequestBody("application/json", typeof(HostRequestForm), Required = true, Description = "The Game")]
         [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
@@ -212,8 +236,8 @@ namespace TheReplacement.Trolley.Api
             return new OkResult();
         }
 
-        [FunctionName("ReshuffleDecks")]
-        [OpenApiOperation(operationId: "ReshuffleDecks", tags: "Game")]
+        [FunctionName(nameof(ReshuffleDecks))]
+        [OpenApiOperation(operationId: nameof(ReshuffleDecks), tags: nameof(Game))]
         [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
         [OpenApiRequestBody("application/json", typeof(HostRequestForm), Required = true, Description = "The Game")]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(Game), Description = "The OK response")]
@@ -251,8 +275,8 @@ namespace TheReplacement.Trolley.Api
             return new OkObjectResult(game);
         }
 
-        [FunctionName("DealToTeam")]
-        [OpenApiOperation(operationId: "DiscardTrack", tags: "Game")]
+        [FunctionName(nameof(DealToTeam))]
+        [OpenApiOperation(operationId: nameof(DealToTeam), tags: nameof(Game))]
         [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
         [OpenApiRequestBody("application/json", typeof(HostRequestForm), Required = true, Description = "The Game")]
         [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
@@ -288,8 +312,8 @@ namespace TheReplacement.Trolley.Api
             return new OkResult();
         }
 
-        [FunctionName("AddToDiscussion")]
-        [OpenApiOperation(operationId: "AddToDiscussion", tags: "Game")]
+        [FunctionName(nameof(AddToDiscussion))]
+        [OpenApiOperation(operationId: nameof(AddToDiscussion), tags: nameof(Game))]
         [OpenApiRequestBody("application/json", typeof(DiscussionForm), Required = true, Description = "The Game")]
         [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
         [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
@@ -325,8 +349,8 @@ namespace TheReplacement.Trolley.Api
             return new OkResult();
         }
 
-        [FunctionName("DeleteGame")]
-        [OpenApiOperation(operationId: "DeleteGame", tags: "Game")]
+        [FunctionName(nameof(DeleteGame))]
+        [OpenApiOperation(operationId: nameof(DeleteGame), tags: nameof(Game))]
         [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
         [OpenApiRequestBody("application/json", typeof(HostRequestForm), Required = true, Description = "The Game")]
         [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]

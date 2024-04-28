@@ -10,9 +10,10 @@ namespace TheReplacement.Trolley.Api.Services.Models
         public Guid HostId { get; set; }
         public DateTime Initialization { get; set; }
         public List<Guid> PlayerIds { get; set; } = new List<Guid>();
-        public Stack<InnocentCard> InnocentDeck { get; set; } = new Stack<InnocentCard>();
-        public Stack<GuiltyCard> GuiltyDeck { get; set; } = new Stack<GuiltyCard>();
-        public Stack<ModifierCard> ModifierDeck { get; set; } = new Stack<ModifierCard>();
+        public Stack<int> InnocentDeck { get; set; } = new Stack<int>();
+        public Stack<int> GuiltyDeck { get; set; } = new Stack<int>();
+        public Stack<int> ModifierDeck { get; set; } = new Stack<int>();
+        public int RoundNumber { get; set; }
         public List<BaseCard> DiscardedCards { get; set; } = new List<BaseCard>();
         public List<DiscussionItem> Discussion { get; set; } = new List<DiscussionItem>();
         public Track Track { get; set; } = new Track();

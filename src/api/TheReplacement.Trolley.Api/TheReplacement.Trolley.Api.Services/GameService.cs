@@ -1,4 +1,5 @@
 ﻿using MongoDB.Driver;
+using System;
 using TheReplacement.Trolley.Api.Services.Abstractions;
 using TheReplacement.Trolley.Api.Services.Enums;
 using TheReplacement.Trolley.Api.Services.Models;
@@ -8,10 +9,12 @@ namespace TheReplacement.Trolley.Api.Services
     public class GameService : BaseService
     {
         private readonly IMongoCollection<Game> _games;
+        private readonly IMongoCollection<Decks> _decks;
 
         private GameService()
         {
             _games = GetMongoCollection<Game>(MongoCollection.Games);
+            _decks = GetMongoCollection<Decks>(MongoCollection.Cards);
         }
 
         static GameService()
@@ -31,6 +34,10 @@ namespace TheReplacement.Trolley.Api.Services
             error = "";
             try
             {
+                var decks = _decks.Find(x => x._id == "cards").Single();
+                game.InnocentDeck = GetShuffledDeck(decks.InnocentDeck);
+                game.ModifierDeck = GetShuffledDeck(decks.ModifierDeck);
+                game.GuiltyDeck = GetShuffledDeck(decks.GuiltyDeck);
                 game.LastAction = DateTime.Now;
                 _games.InsertOne(game);
                 return true;
@@ -95,9 +102,18 @@ namespace TheReplacement.Trolley.Api.Services
             var isSuccessful = players.Aggregate(true, (current, player) =>
             {
                 var hand = player.Hand;
-                hand.InnocentCards.Add(game.InnocentDeck.Pop());
-                hand.ModifierCards.Add(game.ModifierDeck.Pop());
-                hand.GuiltyCards.Add(game.GuiltyDeck.Pop());
+                hand.InnocentCards.Add(new InnocentCard
+                {
+                    ImageId = game.InnocentDeck.Pop()
+                });
+                hand.ModifierCards.Add(new ModifierCard
+                {
+                    ImageId = game.ModifierDeck.Pop()
+                });
+                hand.GuiltyCards.Add(new GuiltyCard
+                {
+                    ImageId = game.GuiltyDeck.Pop()
+                });
                 return current & PlayerService.Singleton.UpdateHand(player, hand) & UpdateGameIsAcknowledged(game);
             });
 
@@ -106,23 +122,28 @@ namespace TheReplacement.Trolley.Api.Services
 
         public bool ShuffleDeck(Game game)
         {
-            game.InnocentDeck = GetShuffledDeck(game, game.InnocentDeck, CardType.Innocent);
-            game.ModifierDeck = GetShuffledDeck(game, game.ModifierDeck, CardType.Modifier);
-            game.GuiltyDeck = GetShuffledDeck(game, game.GuiltyDeck, CardType.Guilty);
+            game.InnocentDeck = GetDiscardedCardsIntoShuffledDeck(game, game.InnocentDeck, CardType.Innocent);
+            game.ModifierDeck = GetDiscardedCardsIntoShuffledDeck(game, game.ModifierDeck, CardType.Modifier);
+            game.GuiltyDeck = GetDiscardedCardsIntoShuffledDeck(game, game.GuiltyDeck, CardType.Guilty);
             game.DiscardedCards = new List<BaseCard>();
 
             return UpdateGameIsAcknowledged(game);
         }
 
-        private static Stack<TDeck> GetShuffledDeck<TDeck>(
+        private static Stack<int> GetDiscardedCardsIntoShuffledDeck(
             Game game,
-            Stack<TDeck> deckStack,
-            CardType deckType) where TDeck : BaseCard
+            Stack<int> deckStack,
+            CardType deckType)
+        {
+            var deck = deckStack.ToList();
+            deck.AddRange(game.DiscardedCards.Where(card => card.Type == deckType).Select(card => card.ImageId));
+            return GetShuffledDeck(deck);
+        }
+
+        private static Stack<int> GetShuffledDeck(List<int> deck)
         {
             var random = new Random();
-            var deck = deckStack.ToList();
-            deck.AddRange(game.DiscardedCards.Where(card => card.Type == deckType).Cast<TDeck>());
-            var shuffledDeck = new Stack<TDeck>();
+            var shuffledDeck = new Stack<int>();
             while (deck.Any())
             {
                 var index = random.Next(deck.Count);

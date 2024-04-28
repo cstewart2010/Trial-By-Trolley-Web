@@ -11,6 +11,8 @@ using Microsoft.OpenApi.Models;
 using TheReplacement.Trolley.Api.Client.Extensions;
 using TheReplacement.Trolley.Api.Client.Models;
 using TheReplacement.Trolley.Api.Services;
+using TheReplacement.Trolley.Api.Services.Abstractions;
+using TheReplacement.Trolley.Api.Services.Enums;
 using TheReplacement.Trolley.Api.Services.Models;
 
 namespace TheReplacement.Trolley.Api
@@ -187,7 +189,12 @@ namespace TheReplacement.Trolley.Api
         {
             var game = GameService.Singleton.GetGame(gameId);
             var form = request.DeserializeBody<PlayCardForm>();
-            var card = CardService.Singleton.GetCard(form.ImageId, form.Type);
+            BaseCard card = form.Type switch
+            {
+                CardType.Innocent => new InnocentCard { ImageId = form.ImageId },
+                CardType.Guilty => new GuiltyCard { ImageId = form.ImageId },
+                CardType.Modifier => new ModifierCard { ImageId = form.ImageId }
+            };
             var result = GameService.Singleton.PlayCard(game, card, form.IsLeftTrack);
             if (!result)
             {

@@ -31,6 +31,13 @@ namespace TheReplacement.Trolley.Api.Services
             return _players.Find(player => game.PlayerIds.Contains(player.PlayerId)).ToList();
         }
 
+        public List<Player> GetTeammates(Game game, Player player)
+        {
+            return _players.Find(teammate => teammate.Team == player.Team
+                && teammate.PlayerId != player.PlayerId
+                && teammate.GameId == game.GameId).ToList();
+        }
+
         public bool CreatePlayer(Player player, out string error)
         {
             error = "";
@@ -46,6 +53,13 @@ namespace TheReplacement.Trolley.Api.Services
             }
         }
 
+        public bool UpdateTeam(Guid playerId, Team team)
+        {
+            var player = GetPlayer(playerId);
+            player.Team = team;
+            return UpdatedPlayerIsAcknowledged(player);
+        }
+
         public bool UpdateGameId(Player player, Guid gameId)
         {
             player.GameId = gameId;
@@ -55,6 +69,12 @@ namespace TheReplacement.Trolley.Api.Services
         public bool UpdateHand(Player player, PlayerHand updatedHand)
         {
             player.Hand = updatedHand;
+            return UpdatedPlayerIsAcknowledged(player);
+        }
+
+        public bool UpdateRoundsWon(Player player)
+        {
+            player.RoundsWon++;
             return UpdatedPlayerIsAcknowledged(player);
         }
 

@@ -13,6 +13,7 @@ using TheReplacement.Trolley.Api.Client.Models;
 using TheReplacement.Trolley.Api.Client.Extensions;
 using TheReplacement.Trolley.Api.Services.Enums;
 using System.IO;
+using System.Linq;
 
 namespace TheReplacement.Trolley.Api.Client
 {
@@ -27,7 +28,7 @@ namespace TheReplacement.Trolley.Api.Client
 
         [FunctionName(nameof(GetPlayer))]
         [OpenApiOperation(operationId: nameof(GetPlayer), tags: nameof(Player))]
-        [OpenApiParameter(name: "playerId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
+        [OpenApiParameter(name: "playerId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **PlayerId** parameter")]
         [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(Player), Description = "The OK response")]
         public IActionResult GetPlayer(
             [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "player/{playerId}")] HttpRequest request,
@@ -47,6 +48,20 @@ namespace TheReplacement.Trolley.Api.Client
         {
             var game = GameService.Singleton.GetGame(gameId);
             var players = PlayerService.Singleton.GetPlayers(game);
+            return new OkObjectResult(players);
+        }
+
+        [FunctionName(nameof(GetTeammates))]
+        [OpenApiOperation(operationId: nameof(GetTeammates), tags: nameof(Player))]
+        [OpenApiParameter(name: "playerId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **PlayerId** parameter")]
+        [OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "application/json", bodyType: typeof(Player[]), Description = "The OK response")]
+        public IActionResult GetTeammates(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "player/teammates/{playerId}")] HttpRequest request,
+            Guid playerId)
+        {
+            var player = PlayerService.Singleton.GetPlayer(playerId);
+            var game = GameService.Singleton.GetGame(player.GameId);
+            var players = PlayerService.Singleton.GetTeammates(game, player);
             return new OkObjectResult(players);
         }
 
@@ -75,13 +90,56 @@ namespace TheReplacement.Trolley.Api.Client
             return new OkObjectResult(player);
         }
 
+        [FunctionName(nameof(SetTeams))]
+        [OpenApiOperation(operationId: nameof(SetTeams), tags: nameof(Player))]
+        [OpenApiRequestBody("application/json", typeof(Guid), Required = true, Description = "The **GameId** parameter")]
+        [OpenApiParameter(name: "hostId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **PlayerId** parameter")]
+        [OpenApiResponseWithoutBody(HttpStatusCode.OK)]
+        public IActionResult SetTeams(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "player/setTeams/{hostId}")] HttpRequest request,
+            Guid hostId)
+        {
+            var reader = new StreamReader(request.Body);
+            var json = reader.ReadToEnd();
+            var gameId = Guid.Parse(json);
+            var game = GameService.Singleton.GetGame(gameId);
+            if (game.HostId != hostId)
+            {
+                var error = "User is not authorized";
+                _logger.LogError(error);
+                return new UnauthorizedObjectResult(error);
+            }
+            var form = request.DeserializeBody<SetTeamsForm>();
+            if (form.PlayerSelections.Any(item => item.Team != Team.Left || item.Team != Team.Right))
+            {
+                var error = "Invalid team selections";
+                _logger.LogError(error);
+                return new BadRequestObjectResult(error);
+            }
+            var result = form.PlayerSelections
+                .Where(item => game.PlayerIds.Contains(item.PlayerId))
+                .Aggregate(true, (current, nextItem) =>
+                {
+                    return PlayerService.Singleton.UpdateTeam(nextItem.PlayerId, nextItem.Team) && current;
+                });
+
+            if (!result)
+            {
+                var error = "Failed to set team for all players";
+                _logger.LogInformation(error);
+                return new BadRequestObjectResult(error);
+            }
+
+            return new OkResult();
+        }
+
         [FunctionName(nameof(SetGameId))]
         [OpenApiOperation(operationId: nameof(SetGameId), tags: nameof(Player))]
         [OpenApiRequestBody("application/json", typeof(Guid), Required = true)]
         [OpenApiParameter(name: "playerId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **PlayerId** parameter")]
         [OpenApiResponseWithoutBody(HttpStatusCode.OK)]
         public IActionResult SetGameId(
-            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "player/join/{playerId}")] HttpRequest request,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "player/join/{playerId}")] HttpRequest request,
             Guid playerId)
         {
             var player = PlayerService.Singleton.GetPlayer(playerId);

@@ -131,6 +131,11 @@ const updatedValidators = {
                 IsHost: boolSchema,
                 IsConductor: boolSchema,
                 RoundsWon: intSchema,
+                Team: {
+                    bsonType: 'int',
+                    minimum: 1,
+                    maximum: 2
+                },
                 Hand: {
                     bsonType: 'object',
                     properties: {

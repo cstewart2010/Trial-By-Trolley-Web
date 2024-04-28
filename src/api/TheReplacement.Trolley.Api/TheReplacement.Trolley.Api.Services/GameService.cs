@@ -82,6 +82,12 @@ namespace TheReplacement.Trolley.Api.Services
             return UpdateGameIsAcknowledged(game);
         }
 
+        public bool UpdateRound(Game game)
+        {
+            game.RoundNumber++;
+            return UpdateGameIsAcknowledged(game);
+        }
+
         public bool PlayCard(Game game, BaseCard card, bool isLeft)
         {
             if (isLeft)

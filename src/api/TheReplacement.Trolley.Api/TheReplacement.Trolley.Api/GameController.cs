@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -353,6 +354,91 @@ namespace TheReplacement.Trolley.Api
                 _logger.LogError(error);
                 return new BadRequestObjectResult(error);
             }
+            return new OkResult();
+        }
+
+        [FunctionName(nameof(IncrementRoundCounter))]
+        [OpenApiOperation(operationId: nameof(IncrementRoundCounter), tags: nameof(Game))]
+        [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
+        [OpenApiResponseWithoutBody(statusCode: HttpStatusCode.OK, Description = "The OK response")]
+        [OpenApiResponseWithBody(statusCode: HttpStatusCode.BadRequest, contentType: "text/plain", bodyType: typeof(string), Description = "The Bad response")]
+        [OpenApiResponseWithBody(statusCode: HttpStatusCode.Unauthorized, contentType: "text/plain", bodyType: typeof(string), Description = "The Unauthorized response")]
+        public IActionResult IncrementRoundCounter(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "game/discussion/{gameId}")] HttpRequest request,
+            Guid gameId)
+        {
+            var form = request.DeserializeBody<PickTrackForm>();
+            if (form == null)
+            {
+                var error = "Failed to deserialize body";
+                _logger.LogError(error);
+                return new BadRequestObjectResult(error);
+            }
+
+            var game = GameService.Singleton.GetGame(gameId);
+            if (game.HostId != form.HostId)
+            {
+                var error = "User is not authorized";
+                _logger.LogError(error);
+                return new UnauthorizedObjectResult(error);
+            }
+
+            var result = GameService.Singleton.UpdateRound(game);
+            if (!result)
+            {
+                var error = "Failed to increment round number";
+                _logger.LogError(error);
+                return new BadRequestObjectResult(error);
+            }
+            return new OkResult();
+        }
+
+        [FunctionName(nameof(PickTrack))]
+        [OpenApiOperation(operationId: nameof(PickTrack), tags: nameof(Game))]
+        [OpenApiRequestBody("application/json", typeof(PickTrackForm), Required = true)]
+        [OpenApiParameter(name: "gameId", In = ParameterLocation.Path, Required = true, Type = typeof(Guid), Description = "The **GameId** parameter")]
+        [OpenApiResponseWithoutBody(HttpStatusCode.OK)]
+        public IActionResult PickTrack(
+            [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "game/pickTrack/{gameId}")] HttpRequest request,
+            Guid gameId)
+        {
+            var form = request.DeserializeBody<PickTrackForm>();
+            if (form == null)
+            {
+                var error = "Failed to deserialize body";
+                _logger.LogError(error);
+                return new BadRequestObjectResult(error);
+            }
+            if (form.Team != Team.Left || form.Team != Team.Right)
+            {
+                var error = "Invalid team selection";
+                _logger.LogError(error);
+                return new BadRequestObjectResult(error);
+            }
+
+            var game = GameService.Singleton.GetGame(gameId);
+            if (game.HostId != form.HostId)
+            {
+                var error = "User is not authorized";
+                _logger.LogError(error);
+                return new UnauthorizedObjectResult(error);
+            }
+
+            var players = PlayerService.Singleton.GetPlayers(game);
+            var result = players
+                .Where(player => player.Team == form.Team)
+                .Aggregate(true, (current, nextPlayer) =>
+                {
+                    return PlayerService.Singleton.UpdateRoundsWon(nextPlayer) && current;
+                });
+
+            if (!result)
+            {
+                var error = "Failed to update wins for all qualified players";
+                _logger.LogInformation(error);
+                return new BadRequestObjectResult(error);
+            }
+
             return new OkResult();
         }
 
